@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+  
+  input, textarea {
+    @apply border-gray-300 focus:border-blue-500 focus:ring-blue-500;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+  }
+  
+  .feature-card {
+    @apply p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-purple-50 
+           border border-gray-200 hover:border-blue-200 transition-all duration-300 
+           shadow-sm hover:shadow-md transform hover:-translate-y-1;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 50%, #EEF2FF 100%);
+}
+
+.blob-animation {
+  animation: blob 7s infinite;
+}
+
+@keyframes blob {
+  0% { border-radius: 60% 40% 30% 70%/60% 30% 70% 40%; }
+  50% { border-radius: 30% 60% 70% 40%/50% 60% 30% 60%; }
+  100% { border-radius: 60% 40% 30% 70%/60% 30% 70% 40%; }
+}
