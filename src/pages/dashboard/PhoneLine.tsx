@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Phone, Network } from 'lucide-react';
+import { Phone, Network, MapPin } from 'lucide-react';
 import BuyPhoneNumber from '@/components/dashboard/lines/BuyPhoneNumber';
 import ConnectSIP from '@/components/dashboard/lines/ConnectSIP';
+import { AddressManager } from '@/components/dashboard/lines/AddressManager';
 
-type TabType = 'buy' | 'connect';
+type TabType = 'buy' | 'connect' | 'addresses';
 
 export default function PhoneLine() {
   const [activeTab, setActiveTab] = useState<TabType>('buy');
@@ -17,6 +18,17 @@ export default function PhoneLine() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-100">
           <div className="flex">
+            <button
+              onClick={() => setActiveTab('addresses')}
+              className={`px-6 py-4 flex items-center space-x-2 border-b-2 ${
+                activeTab === 'addresses'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <MapPin className="w-5 h-5" />
+              <span>Gestion des adresses</span>
+            </button>
             <button
               onClick={() => setActiveTab('buy')}
               className={`px-6 py-4 flex items-center space-x-2 border-b-2 ${
@@ -43,7 +55,9 @@ export default function PhoneLine() {
         </div>
 
         <div className="p-6">
-          {activeTab === 'buy' ? (
+          {activeTab === 'addresses' ? (
+            <AddressManager />
+          ) : activeTab === 'buy' ? (
             <BuyPhoneNumber />
           ) : (
             <ConnectSIP />
