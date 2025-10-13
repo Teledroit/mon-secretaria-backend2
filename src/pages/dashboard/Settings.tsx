@@ -133,70 +133,45 @@ export default function Settings() {
 
   const handleGeneralSettingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Get the current settings from the configuration state
-    const currentSettings = {
-      welcomeMessage: configuration?.welcome_message || "Bonjour, vous êtes en communication avec l'assistant virtuel du cabinet. Comment puis-je vous aider ?",
-      voiceType: configuration?.voice_type ?? "female",
-      latency: configuration?.latency || 0.5,
-      interruptionSensitivity: configuration?.interruption_sensitivity || 0.7,
-      enableBackchanneling: configuration?.enable_backchanneling ?? true,
-      maxCallDuration: configuration?.max_call_duration || 20,
-      silenceTimeout: configuration?.silence_timeout || 5,
-      detectVoicemail: configuration?.detect_voicemail ?? true,
-      enableSpeechNormalization: configuration?.enable_speech_normalization ?? true,
-      transferNumber: configuration?.transfer_number ?? "",
-      workingHours: {
-        start: configuration?.working_hours_start ?? "09:00",
-        end: configuration?.working_hours_end ?? "18:00",
-        workingDays: configuration?.working_days || ["monday", "tuesday", "wednesday", "thursday", "friday"]
-      },
-      notifications: configuration?.notifications || {
-        email: configuration?.notifications_email ?? true,
-        sms: configuration?.notifications_sms ?? false
-      }
-    };
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('User not authenticated');
       }
 
+      // Use the current configuration state which has been updated by onSettingsChange
       const { error } = await supabase
         .from('configurations')
         .update({
-          welcome_message: currentSettings.welcomeMessage,
-          voice_type: currentSettings.voiceType,
-          detect_voicemail: currentSettings.detectVoicemail,
-          max_call_duration: currentSettings.maxCallDuration,
-          silence_timeout: currentSettings.silenceTimeout,
-          latency: currentSettings.latency,
-          interruption_sensitivity: currentSettings.interruptionSensitivity,
-          enable_backchanneling: currentSettings.enableBackchanneling,
-          enable_speech_normalization: currentSettings.enableSpeechNormalization,
-          working_hours_start: currentSettings.workingHours.start,
-          working_hours_end: currentSettings.workingHours.end,
-          working_days: currentSettings.workingHours.workingDays,
-          transfer_number: currentSettings.transferNumber,
-          notifications: {
-            ...configuration?.notifications,
-            general: currentSettings.notifications
-          },
-        }
-        )
+          welcome_message: configuration?.welcome_message,
+          voice_type: configuration?.voice_type,
+          detect_voicemail: configuration?.detect_voicemail,
+          max_call_duration: configuration?.max_call_duration,
+          silence_timeout: configuration?.silence_timeout,
+          latency: configuration?.latency,
+          interruption_sensitivity: configuration?.interruption_sensitivity,
+          enable_backchanneling: configuration?.enable_backchanneling,
+          enable_speech_normalization: configuration?.enable_speech_normalization,
+          working_hours_start: configuration?.working_hours_start,
+          working_hours_end: configuration?.working_hours_end,
+          working_days: configuration?.working_days,
+          transfer_number: configuration?.transfer_number,
+          notifications_email: configuration?.notifications_email,
+          notifications_sms: configuration?.notifications_sms,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', configuration?.id)
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
 
       // Show success message
       alert('Paramètres sauvegardés avec succès !');
-      
+
       // Refresh configuration from server
-      fetchConfiguration();
+      await fetchConfiguration();
     } catch (error) {
       console.error('Error saving general settings:', error);
       alert('Erreur lors de la sauvegarde des paramètres');
@@ -248,9 +223,9 @@ export default function Settings() {
               end: configuration?.working_hours_end ?? "18:00",
               workingDays: configuration?.working_days || ["monday", "tuesday", "wednesday", "thursday", "friday"]
             },
-            notifications: configuration?.notifications?.general || {
-              email: true,
-              sms: false
+            notifications: {
+              email: configuration?.notifications_email ?? true,
+              sms: configuration?.notifications_sms ?? false
             }
           }}
           onSettingsChange={(newSettings) => {
@@ -270,10 +245,8 @@ export default function Settings() {
               working_hours_end: newSettings.workingHours.end,
               working_days: newSettings.workingHours.workingDays,
               transfer_number: newSettings.transferNumber,
-              notifications: {
-                ...configuration?.notifications,
-                general: newSettings.notifications
-              }
+              notifications_email: newSettings.notifications.email,
+              notifications_sms: newSettings.notifications.sms
             }));
           }}
           onSubmit={handleGeneralSettingsSave}
