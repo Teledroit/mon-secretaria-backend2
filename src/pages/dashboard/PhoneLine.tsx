@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Phone, Network, MapPin } from 'lucide-react';
+import { Phone, Network, MapPin, Plus } from 'lucide-react';
 import BuyPhoneNumber from '@/components/dashboard/lines/BuyPhoneNumber';
 import ConnectSIP from '@/components/dashboard/lines/ConnectSIP';
 import { AddressManager } from '@/components/dashboard/lines/AddressManager';
+import ManualNumber from '@/components/dashboard/lines/ManualNumber';
 
-type TabType = 'buy' | 'connect' | 'addresses';
+type TabType = 'manual' | 'buy' | 'connect' | 'addresses';
 
 export default function PhoneLine() {
-  const [activeTab, setActiveTab] = useState<TabType>('buy');
+  const [activeTab, setActiveTab] = useState<TabType>('manual');
 
   return (
     <div className="space-y-6">
@@ -18,6 +19,17 @@ export default function PhoneLine() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-100">
           <div className="flex">
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`px-6 py-4 flex items-center space-x-2 border-b-2 ${
+                activeTab === 'manual'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Plus className="w-5 h-5" />
+              <span>Ajouter manuellement</span>
+            </button>
             <button
               onClick={() => setActiveTab('addresses')}
               className={`px-6 py-4 flex items-center space-x-2 border-b-2 ${
@@ -55,7 +67,9 @@ export default function PhoneLine() {
         </div>
 
         <div className="p-6">
-          {activeTab === 'addresses' ? (
+          {activeTab === 'manual' ? (
+            <ManualNumber />
+          ) : activeTab === 'addresses' ? (
             <AddressManager />
           ) : activeTab === 'buy' ? (
             <BuyPhoneNumber />
