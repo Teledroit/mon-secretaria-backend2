@@ -11,6 +11,63 @@ interface SearchRequest {
   country?: string;
 }
 
+// Map country codes and phone prefixes to Twilio country codes
+const COUNTRY_MAPPING: Record<string, string> = {
+  // Phone prefixes
+  '+33': 'FR',
+  '+34': 'ES',
+  '+49': 'DE',
+  '+39': 'IT',
+  '+351': 'PT',
+  '+31': 'NL',
+  '+32': 'BE',
+  '+41': 'CH',
+  '+46': 'SE',
+  '+48': 'PL',
+  '+44': 'GB',
+  '+1': 'US',
+  // ISO codes
+  'FR': 'FR',
+  'ES': 'ES',
+  'DE': 'DE',
+  'IT': 'IT',
+  'PT': 'PT',
+  'NL': 'NL',
+  'BE': 'BE',
+  'CH': 'CH',
+  'SE': 'SE',
+  'PL': 'PL',
+  'GB': 'GB',
+  'UK': 'GB',
+  'US': 'US',
+  'CA': 'CA',
+};
+
+function detectCountry(query: string): { country: string; cleanQuery: string } {
+  const trimmed = query.trim().toUpperCase();
+  
+  // Check if query starts with a phone prefix
+  for (const [prefix, country] of Object.entries(COUNTRY_MAPPING)) {
+    if (prefix.startsWith('+') && trimmed.startsWith(prefix)) {
+      return { country, cleanQuery: trimmed.substring(prefix.length).trim() };
+    }
+  }
+  
+  // Check if query is a country code (2 letters)
+  if (trimmed.length === 2 && COUNTRY_MAPPING[trimmed]) {
+    return { country: COUNTRY_MAPPING[trimmed], cleanQuery: '' };
+  }
+  
+  // Check if query starts with a country code followed by space or comma
+  const firstWord = trimmed.split(/[\s,]+/)[0];
+  if (firstWord.length === 2 && COUNTRY_MAPPING[firstWord]) {
+    return { country: COUNTRY_MAPPING[firstWord], cleanQuery: trimmed.substring(2).trim() };
+  }
+  
+  // Default to France
+  return { country: 'FR', cleanQuery: query.trim() };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -20,7 +77,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { searchQuery = '', country = 'FR' }: SearchRequest = await req.json();
+    const { searchQuery = '', country }: SearchRequest = await req.json();
 
     const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
     const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
@@ -31,24 +88,34 @@ Deno.serve(async (req: Request) => {
 
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
 
+    // Detect country from query if not explicitly provided
+    let targetCountry = country || 'FR';
+    let cleanQuery = searchQuery;
+    
+    if (!country && searchQuery) {
+      const detected = detectCountry(searchQuery);
+      targetCountry = detected.country;
+      cleanQuery = detected.cleanQuery;
+      console.log(`Detected country: ${targetCountry}, clean query: "${cleanQuery}"`);
+    }
+
     // Build query parameters
     const params = new URLSearchParams();
 
-    // Handle different search types
-    if (searchQuery) {
-      // Check if it's a city name or area code
-      if (/^\d+$/.test(searchQuery)) {
-        // It's a number (area code)
-        params.append('AreaCode', searchQuery);
+    // Handle different search types for the clean query
+    if (cleanQuery && cleanQuery.trim()) {
+      // Check if it's a number (area code)
+      if (/^\d+$/.test(cleanQuery.trim())) {
+        params.append('AreaCode', cleanQuery.trim());
       } else {
         // It's a city name
-        params.append('InLocality', searchQuery);
+        params.append('InLocality', cleanQuery.trim());
       }
     }
 
     params.append('Limit', '20');
 
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/AvailablePhoneNumbers/${country}/Local.json?${params.toString()}`;
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/AvailablePhoneNumbers/${targetCountry}/Local.json?${params.toString()}`;
 
     console.log('Searching Twilio for numbers:', twilioUrl);
 
@@ -77,6 +144,9 @@ Deno.serve(async (req: Request) => {
             requiresUpgrade: true,
             twilioDocsUrl: errorData.more_info || "https://www.twilio.com/console"
           };
+        } else if (errorData.code === 21452) {
+          errorMessage = `Aucun numéro disponible pour le pays ${targetCountry}. Twilio ne propose peut-être pas de numéros dans ce pays.`;
+          errorDetails = { code: errorData.code };
         } else if (errorData.message) {
           errorMessage = errorData.message;
           errorDetails = { code: errorData.code };
@@ -106,19 +176,20 @@ Deno.serve(async (req: Request) => {
 
     const formattedNumbers = (data.available_phone_numbers || []).map((number: any) => ({
       number: number.phone_number,
-      location: number.locality || number.region || 'France',
+      location: number.locality || number.region || targetCountry,
       type: 'local',
       price: 1,
       capabilities: number.capabilities,
     }));
 
-    console.log(`Found ${formattedNumbers.length} available numbers`);
+    console.log(`Found ${formattedNumbers.length} available numbers for ${targetCountry}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         numbers: formattedNumbers,
         count: formattedNumbers.length,
+        country: targetCountry,
       }),
       {
         headers: {
