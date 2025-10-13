@@ -82,15 +82,21 @@ export default function AIConfiguration({ onSave, initialConfig }: AIConfigurati
     }
   }, [initialConfig]);
 
-  const handleSave = () => {
-    onSave({
-      prompt,
-      systemInstructions,
-      temperature,
-      ttsEngine,
-      nlpEngine,
-      voiceId
-    });
+  const handleSave = async () => {
+    try {
+      await onSave({
+        prompt,
+        systemInstructions,
+        temperature,
+        ttsEngine,
+        nlpEngine,
+        voiceId
+      });
+      alert('Configuration IA sauvegardée avec succès !');
+    } catch (error) {
+      console.error('Error saving AI config:', error);
+      alert('Erreur lors de la sauvegarde de la configuration IA');
+    }
   };
 
   const playDemo = async () => {
