@@ -57,30 +57,31 @@ export default function AIConfiguration({ onSave, initialConfig }: AIConfigurati
     }
   };
 
-  // Load initial configuration when component mounts or initialConfig changes
+  // Load initial configuration ONLY on component mount
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (initialConfig) {
+    if (initialConfig && !isInitialized) {
       // Force ElevenLabs if user had Google or Azure configured
-      const engineToUse = (initialConfig.ttsEngine === 'google' || initialConfig.ttsEngine === 'azure') 
-        ? 'elevenlabs' 
+      const engineToUse = (initialConfig.ttsEngine === 'google' || initialConfig.ttsEngine === 'azure')
+        ? 'elevenlabs'
         : initialConfig.ttsEngine;
-      
-      if (initialConfig.ttsEngine) setTTSEngine(initialConfig.ttsEngine);
+
+      if (initialConfig.ttsEngine) setTTSEngine(engineToUse);
       if (initialConfig.nlpEngine) setNLPEngine(initialConfig.nlpEngine);
       if (initialConfig.voice) setVoiceId(initialConfig.voice);
       if (initialConfig.temperature !== undefined) setTemperature(initialConfig.temperature);
       // Only set system instructions if they exist and are not the default welcome message
-      if (initialConfig.systemInstructions && 
+      if (initialConfig.systemInstructions &&
           !initialConfig.systemInstructions.includes("Bonjour, vous êtes en communication avec l'assistant virtuel du cabinet")) {
         setSystemInstructions(initialConfig.systemInstructions);
         // Update demo text if we have custom system instructions
         setDemoText(initialConfig.systemInstructions);
       }
-      
-      // Set the corrected engine
-      setTTSEngine(engineToUse);
+
+      setIsInitialized(true);
     }
-  }, [initialConfig]);
+  }, [initialConfig, isInitialized]);
 
   const handleSave = async () => {
     try {
