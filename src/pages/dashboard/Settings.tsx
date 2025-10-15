@@ -23,12 +23,14 @@ export default function Settings() {
         throw new Error('User not authenticated');
       }
 
-      // Fetch existing configuration
+      // Fetch existing configuration with maybeSingle to avoid cache issues
       const { data, error } = await supabase
         .from('configurations')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -71,7 +73,7 @@ export default function Settings() {
         throw new Error('User not authenticated');
       }
 
-      const { error } = await supabase
+      const { data: updatedConfig, error } = await supabase
         .from('configurations')
         .upsert({
           id: configuration?.id,
@@ -82,22 +84,18 @@ export default function Settings() {
           temperature: aiConfig.temperature,
           system_instructions: aiConfig.systemInstructions,
           updated_at: new Date().toISOString()
-        });
+        }, {
+          onConflict: 'id'
+        })
+        .select()
+        .single();
 
       if (error) throw error;
-      
-      // Update local state first for immediate feedback
-      setConfiguration(prev => ({
-        ...prev,
-        tts_engine: aiConfig.ttsEngine,
-        nlp_engine: aiConfig.nlpEngine,
-        voice_id: aiConfig.ttsEngine === 'elevenlabs' ? aiConfig.voiceId : null,
-        temperature: aiConfig.temperature,
-        system_instructions: aiConfig.systemInstructions
-      }));
 
-      // Then refresh from server
-      fetchConfiguration();
+      console.log('AI Config saved successfully:', updatedConfig);
+
+      // Use the data returned from the database to update local state
+      setConfiguration(updatedConfig);
     } catch (error) {
       console.error('Error saving AI configuration:', error);
       throw error;
@@ -167,11 +165,14 @@ export default function Settings() {
 
       if (error) throw error;
 
+      // Update local state to reflect saved changes
+      setConfiguration(prev => ({
+        ...prev,
+        updated_at: new Date().toISOString()
+      }));
+
       // Show success message
       alert('Paramètres sauvegardés avec succès !');
-
-      // Refresh configuration from server
-      await fetchConfiguration();
     } catch (error) {
       console.error('Error saving general settings:', error);
       alert('Erreur lors de la sauvegarde des paramètres');
