@@ -13,7 +13,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/dashboard';
+  const rawFrom = location.state?.from?.pathname || '/dashboard';
+  const from = rawFrom.startsWith('/dashboard') ? rawFrom : '/dashboard';
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -31,9 +32,6 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-      
-      // Add delay to allow subscription status to be fetched
-      await new Promise(resolve => setTimeout(resolve, 1000));
       navigate(from);
     } catch (error: any) {
       setError(error.message || 'Une erreur est survenue lors de la connexion');
