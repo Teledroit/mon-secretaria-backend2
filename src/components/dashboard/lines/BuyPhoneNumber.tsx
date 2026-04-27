@@ -14,6 +14,8 @@ interface PhoneNumber {
 interface ErrorDetails {
   code?: number;
   requiresUpgrade?: boolean;
+  requiresAddress?: boolean;
+  requiresWait?: boolean;
   twilioDocsUrl?: string;
 }
 
@@ -102,22 +104,32 @@ export default function BuyPhoneNumber() {
     }
 
     setError(null);
+    setErrorDetails(null);
 
     try {
       await twilioIntegration.purchasePhoneNumber(number.number);
 
-      // Refresh the list of owned numbers
       await loadOwnedNumbers();
-
-      // Remove the number from available numbers
       setAvailableNumbers(prev => prev.filter(n => n.number !== number.number));
 
       alert('Numéro acheté avec succès !');
     } catch (err: any) {
       console.error('Purchase error:', err);
-      const errorMessage = err?.message || "Une erreur est survenue lors de l'achat du numéro";
+
+      let errorMessage = err?.message || "Une erreur est survenue lors de l'achat du numéro";
+      let details: ErrorDetails | null = null;
+
+      if (err?.response?.data) {
+        if (err.response.data.details) {
+          details = err.response.data.details;
+        }
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+      }
+
       setError(errorMessage);
-      alert(`Erreur: ${errorMessage}`);
+      setErrorDetails(details);
     }
   };
 
@@ -160,19 +172,32 @@ export default function BuyPhoneNumber() {
         )}
       </div>
 
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Numéros disponibles immédiatement</h4>
+        <p className="text-sm text-blue-700 mb-2">
+          <strong>Europe :</strong> DE, ES, IT, PT, NL, BE, CH, SE, PL (instantané, tarifs européens)
+        </p>
+        <p className="text-sm text-blue-700 mb-2">
+          <strong>International :</strong> US, CA (instantané)
+        </p>
+        <p className="text-xs text-blue-600">
+          <strong>France (+33) :</strong> Nécessite une vérification réglementaire (2-3 minutes)
+        </p>
+      </div>
+
       <div className="space-y-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <input
               type="text"
-              placeholder="Rechercher par ville (ex: Paris, Lyon, Marseille) ou indicatif (ex: 01, 06)"
+              placeholder="Rechercher par pays, ville ou indicatif (ex: DE, ES, +33, Berlin, Madrid)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Exemples: "Paris", "Lyon", "01" (indicatif régional)
+              Exemples: "DE", "ES", "IT" (instantané) ou "+33", "Paris" (avec vérification)
             </p>
           </div>
           <Button
@@ -186,20 +211,32 @@ export default function BuyPhoneNumber() {
 
         {error && (
           <div className={`p-4 border rounded-lg ${
-            errorDetails?.requiresUpgrade
+            errorDetails?.requiresUpgrade || errorDetails?.requiresAddress || errorDetails?.requiresWait
               ? 'bg-amber-50 border-amber-200'
               : 'bg-red-50 border-red-200'
           }`}>
             <div className="flex items-start space-x-3">
               <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                errorDetails?.requiresUpgrade ? 'text-amber-600' : 'text-red-600'
+                errorDetails?.requiresUpgrade || errorDetails?.requiresAddress || errorDetails?.requiresWait ? 'text-amber-600' : 'text-red-600'
               }`} />
               <div className="flex-1">
                 <p className={`text-sm font-medium ${
-                  errorDetails?.requiresUpgrade ? 'text-amber-800' : 'text-red-800'
+                  errorDetails?.requiresUpgrade || errorDetails?.requiresAddress || errorDetails?.requiresWait ? 'text-amber-800' : 'text-red-800'
                 }`}>
                   {error}
                 </p>
+                {errorDetails?.requiresAddress && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm text-amber-700">
+                      Pour acheter ce numéro, vous devez d'abord enregistrer une adresse :
+                    </p>
+                    <ol className="list-decimal list-inside text-sm text-amber-700 space-y-1 ml-2">
+                      <li>Accédez à l'onglet "Gestion des adresses"</li>
+                      <li>Ajoutez une adresse complète</li>
+                      <li>Revenez sur cette page pour acheter le numéro</li>
+                    </ol>
+                  </div>
+                )}
                 {errorDetails?.requiresUpgrade && (
                   <div className="mt-3 space-y-2">
                     <p className="text-sm text-amber-700">
@@ -224,7 +261,17 @@ export default function BuyPhoneNumber() {
                     )}
                   </div>
                 )}
-                {errorDetails?.code && !errorDetails?.requiresUpgrade && (
+                {errorDetails?.requiresWait && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm text-amber-700">
+                      Le système crée automatiquement un bundle de conformité réglementaire pour votre adresse. Ce processus peut prendre quelques minutes.
+                    </p>
+                    <p className="text-sm text-amber-700 font-medium">
+                      Alternative : Essayez un numéro DE, ES, IT, PT, NL, US ou CA disponible immédiatement.
+                    </p>
+                  </div>
+                )}
+                {errorDetails?.code && !errorDetails?.requiresUpgrade && !errorDetails?.requiresAddress && !errorDetails?.requiresWait && (
                   <p className="text-xs text-red-600 mt-1">Code d'erreur: {errorDetails.code}</p>
                 )}
               </div>
