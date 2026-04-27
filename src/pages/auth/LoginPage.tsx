@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading } = useAuth();
   const rawFrom = location.state?.from?.pathname || '/dashboard';
   const from = rawFrom.startsWith('/dashboard') ? rawFrom : '/dashboard';
 
@@ -20,22 +21,33 @@ export default function LoginPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, loading, navigate, from]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
-      navigate(from);
     } catch (error: any) {
-      setError(error.message || 'Une erreur est survenue lors de la connexion');
-    } finally {
+      const msg = error.message || '';
+      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+        setError('Email ou mot de passe incorrect.');
+      } else if (msg.includes('Email not confirmed')) {
+        setError('Veuillez confirmer votre email avant de vous connecter.');
+      } else {
+        setError(msg || 'Une erreur est survenue lors de la connexion.');
+      }
       setIsLoading(false);
     }
   };

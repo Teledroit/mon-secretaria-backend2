@@ -41,7 +41,7 @@ export default function Settings() {
               user_id: user.id,
               tts_engine: 'elevenlabs',
               nlp_engine: 'gpt-4',
-              voice_id: 'EXAVITQu4vr4xnSDxMaL',
+              voice_id: 'TxGEqnHWrfWFTfGW9XjX', // Josh - French native male professional
               temperature: 0.7,
               welcome_message: "Bonjour, vous êtes en communication avec l'assistant virtuel du cabinet. Comment puis-je vous aider ?",
               privacy_settings: {}
@@ -68,10 +68,17 @@ export default function Settings() {
   const handleAIConfigSave = async (aiConfig: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('User not authenticated');
       }
+
+      // Map voiceId to voice_type (male/female)
+      // Male voice IDs from ElevenLabs
+      const maleVoiceIds = ['VR6AewLTigWG4xSOukaG', 'ThT5KcBeYPX3keUQqHPh'];
+      const voiceType = maleVoiceIds.includes(aiConfig.voiceId) ? 'male' : 'female';
+
+      console.log('Saving AI config - voiceId:', aiConfig.voiceId, '-> voice_type:', voiceType);
 
       const { data: updatedConfig, error } = await supabase
         .from('configurations')
@@ -81,6 +88,7 @@ export default function Settings() {
           tts_engine: aiConfig.ttsEngine,
           nlp_engine: aiConfig.nlpEngine,
           voice_id: aiConfig.ttsEngine === 'elevenlabs' ? aiConfig.voiceId : null,
+          voice_type: voiceType, // CRITICAL: Map to male/female for Twilio
           temperature: aiConfig.temperature,
           system_instructions: aiConfig.systemInstructions,
           updated_at: new Date().toISOString()
@@ -92,7 +100,7 @@ export default function Settings() {
 
       if (error) throw error;
 
-      console.log('AI Config saved successfully:', updatedConfig);
+      console.log('AI Config saved successfully with voice_type:', voiceType, updatedConfig);
 
       // Use the data returned from the database to update local state
       setConfiguration(updatedConfig);
@@ -139,6 +147,26 @@ export default function Settings() {
         throw new Error('User not authenticated');
       }
 
+      // Convert working_days from strings to numbers
+      // ["monday", "tuesday", "wednesday"] -> [1, 2, 3]
+      const dayMap: { [key: string]: number } = {
+        'sunday': 0,
+        'monday': 1,
+        'tuesday': 2,
+        'wednesday': 3,
+        'thursday': 4,
+        'friday': 5,
+        'saturday': 6
+      };
+
+      const workingDaysNumbers = Array.isArray(configuration?.working_days)
+        ? configuration.working_days.map((day: string | number) =>
+            typeof day === 'string' ? dayMap[day] : day
+          ).filter((d: any) => typeof d === 'number')
+        : [1, 2, 3, 4, 5]; // Default Monday-Friday
+
+      console.log('Converting working_days:', configuration?.working_days, '->', workingDaysNumbers);
+
       // Use the current configuration state which has been updated by onSettingsChange
       const { error } = await supabase
         .from('configurations')
@@ -154,7 +182,7 @@ export default function Settings() {
           enable_speech_normalization: configuration?.enable_speech_normalization,
           working_hours_start: configuration?.working_hours_start,
           working_hours_end: configuration?.working_hours_end,
-          working_days: configuration?.working_days,
+          working_days: workingDaysNumbers, // CRITICAL: Convert strings to numbers
           transfer_number: configuration?.transfer_number,
           notifications_email: configuration?.notifications_email,
           notifications_sms: configuration?.notifications_sms,
@@ -165,9 +193,12 @@ export default function Settings() {
 
       if (error) throw error;
 
+      console.log('General settings saved with working_days:', workingDaysNumbers);
+
       // Update local state to reflect saved changes
       setConfiguration(prev => ({
         ...prev,
+        working_days: workingDaysNumbers,
         updated_at: new Date().toISOString()
       }));
 
@@ -199,7 +230,7 @@ export default function Settings() {
           initialConfig={{
             ttsEngine: configuration?.tts_engine,
             nlpEngine: configuration?.nlp_engine,
-            voice: configuration?.voice_id || 'EXAVITQu4vr4xnSDxMaL',
+            voice: configuration?.voice_id || 'TxGEqnHWrfWFTfGW9XjX',
             temperature: configuration?.temperature,
             systemInstructions: configuration?.system_instructions
           }}

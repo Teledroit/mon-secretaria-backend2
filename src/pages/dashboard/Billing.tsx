@@ -87,18 +87,17 @@ export default function Billing() {
       setBillingHistory(history);
 
       const { data: subscription } = await supabase
-        .from('stripe_user_subscriptions')
-        .select('price_id')
-        .single();
+        .from('active_subscriptions')
+        .select('price_id, current_period_start, current_period_end')
+        .eq('user_id', user?.id)
+        .maybeSingle();
 
       if (subscription?.price_id) {
-        // Find the plan name based on price_id
         const plan = Object.values(STRIPE_PRODUCTS).find(
           p => p.priceId === subscription.price_id
         );
         setCurrentPlan(plan?.name || 'Plan inconnu');
-        
-        // Set current period
+
         if (subscription.current_period_start && subscription.current_period_end) {
           setCurrentPeriod({
             start: new Date(subscription.current_period_start * 1000),

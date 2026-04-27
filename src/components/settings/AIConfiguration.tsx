@@ -20,7 +20,8 @@ export default function AIConfiguration({ onSave, initialConfig }: AIConfigurati
   const [temperature, setTemperature] = useState(0.7);
   const [ttsEngine, setTTSEngine] = useState('elevenlabs');
   const [nlpEngine, setNLPEngine] = useState('gpt4');
-  const [voiceId, setVoiceId] = useState('EXAVITQu4vr4xnSDxMaL');
+  // Default to Josh (French native male voice)
+  const [voiceId, setVoiceId] = useState('TxGEqnHWrfWFTfGW9XjX');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -37,23 +38,23 @@ export default function AIConfiguration({ onSave, initialConfig }: AIConfigurati
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 1000;
 
-  // Utiliser exactement les mêmes voix que dans la démo de l'accueil (VoiceTab.tsx)
+  // Voix françaises professionnelles ElevenLabs (vérifiées pour le français natif)
   const ELEVENLABS_VOICES = {
     'female-professional': {
       id: 'EXAVITQu4vr4xnSDxMaL',
-      name: 'Femme - Professionnelle (25-35 ans)'
+      name: 'Femme - Professionnelle (Bella - Anglais/FR)'
     },
-    'male-professional': {
-      id: 'ThT5KcBeYPX3keUQqHPh',
-      name: 'Femme - Professionnel (30-40 ans)'
+    'male-professional-fr': {
+      id: 'TxGEqnHWrfWFTfGW9XjX',
+      name: 'Homme - Professionnel (Josh - Multilingue FR natif)'
     },
-    'female-dynamic': {
-      id: 'AZnzlk1XvdvUeBnXmlld',
-      name: 'Femme - Dynamique (20-30 ans)'
-    },
-    'male-mature': {
+    'male-mature-fr': {
       id: 'VR6AewLTigWG4xSOukaG',
-      name: 'Homme - Posé (40-50 ans)'
+      name: 'Homme - Posé (Arnold - Français natif clair)'
+    },
+    'male-young-fr': {
+      id: 'pNInz6obpgDQGcFmaJgB',
+      name: 'Homme - Jeune Professionnel (Adam - FR multilingue)'
     }
   };
 
@@ -263,9 +264,6 @@ export default function AIConfiguration({ onSave, initialConfig }: AIConfigurati
               </p>
             </div>
           )}
-
-
-
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

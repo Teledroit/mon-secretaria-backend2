@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Mic, PhoneOff, AlertCircle, Play, Pause, Volume2 } from 'lucide-react';
+import { Phone, Mic, PhoneOff, CircleAlert as AlertCircle, Play, Pause, Volume2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/AuthContext';
 import CallFilters from '@/components/dashboard/calls/CallFilters';
@@ -52,7 +52,7 @@ export default function CallCenter() {
         .from('configurations')
         .select('*')
         .eq('user_id', currentUser.id)
-        .single();
+        .maybeSingle();
 
       if (config) {
         setCallConfig({
@@ -369,7 +369,7 @@ export default function CallCenter() {
       const details: CallDetails = {
         id: call.id,
         transcription: call.transcriptions?.map(t => t.content).join('\n') || 'Pas de transcription',
-        aiResponses: ['Réponse IA simulée'], // À remplacer par les vraies réponses
+        aiResponses: ['Réponse IA simulée'],
         sentiment: call.transcriptions?.[0]?.sentiment || 'neutral',
         duration: call.duration || '0:00',
         cost: call.cost || 0
@@ -499,7 +499,7 @@ export default function CallCenter() {
                 <p className="text-sm text-gray-600">Réponses IA</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-2xl font-bold text-blue-600">
                   {callConfig?.temperature || 0.7}
                 </p>
                 <p className="text-sm text-gray-600">Température IA</p>
@@ -557,7 +557,7 @@ export default function CallCenter() {
                   <p className="text-sm text-gray-600">Coût</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-2xl font-bold text-purple-600">{selectedCallDetails.sentiment}</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedCallDetails.sentiment}</p>
                   <p className="text-sm text-gray-600">Sentiment</p>
                 </div>
               </div>

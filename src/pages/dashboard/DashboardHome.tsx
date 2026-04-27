@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Calendar, Clock, AlertCircle, TrendingUp, Users } from 'lucide-react';
+import { Phone, Calendar, Clock, CircleAlert as AlertCircle, TrendingUp, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
@@ -55,27 +55,37 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchDashboardData();
-    subscribeToUpdates();
-    
+    const unsubscribe = subscribeToUpdates();
+
     // Refresh data every 30 seconds
     const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, []);
 
   const fetchDashboardData = async () => {
-    // Récupérer les statistiques des appels
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      // Récupérer les statistiques des appels
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const { data: todayCalls, error: callsError } = await supabase
-      .from('calls')
-      .select('*')
-      .gte('start_time', today.toISOString());
+      const { data: todayCalls, error: callsError } = await supabase
+        .from('calls')
+        .select('*')
+        .gte('start_time', today.toISOString());
 
-    if (callsError) {
-      console.error('Error fetching calls:', callsError);
-      return;
-    }
+      if (callsError) {
+        console.error('Error fetching calls:', callsError);
+        setStats({
+          totalCalls: 0,
+          appointmentsBooked: 0,
+          averageCallDuration: '0m 0s',
+          conversionRate: '0%',
+        });
+        return;
+      }
 
     // Calculer les statistiques
     const totalCalls = todayCalls?.length || 0;
@@ -97,44 +107,55 @@ export default function DashboardHome() {
       seconds = Math.floor((averageDuration % 60000) / 1000);
     }
 
-    // Récupérer les appels récents
-    const { data: recent, error: recentError } = await supabase
-      .from('calls')
-      .select(`
-        id,
-        start_time,
-        end_time,
-        status,
-        transcriptions (
-          content
-        )
-      `)
-      .order('start_time', { ascending: false })
-      .limit(4);
+      // Récupérer les appels récents
+      const { data: recent, error: recentError } = await supabase
+        .from('calls')
+        .select(`
+          id,
+          start_time,
+          end_time,
+          status,
+          transcriptions (
+            content
+          )
+        `)
+        .order('start_time', { ascending: false })
+        .limit(4);
 
-    if (recentError) {
-      console.error('Error fetching recent calls:', recentError);
-    } else {
-      const formattedCalls = recent?.map(call => ({
-        id: call.id,
-        name: 'Client', // À remplacer par le vrai nom si disponible
-        time: new Date(call.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        duration: call.end_time ? 
-          `${Math.floor((new Date(call.end_time).getTime() - new Date(call.start_time).getTime()) / 60000)}:${
-            String(Math.floor((new Date(call.end_time).getTime() - new Date(call.start_time).getTime()) / 1000) % 60).padStart(2, '0')
-          }` : '--:--',
-        status: call.status as 'completed' | 'missed',
-        type: call.transcriptions?.[0]?.content?.substring(0, 20) + '...' || 'Appel'
-      }));
-      setRecentCalls(formattedCalls || []);
+      if (recentError) {
+        console.error('Error fetching recent calls:', recentError);
+      } else {
+        const formattedCalls = recent?.map(call => ({
+          id: call.id,
+          name: 'Client',
+          time: new Date(call.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          duration: call.end_time ?
+            `${Math.floor((new Date(call.end_time).getTime() - new Date(call.start_time).getTime()) / 60000)}:${
+              String(Math.floor((new Date(call.end_time).getTime() - new Date(call.start_time).getTime()) / 1000) % 60).padStart(2, '0')
+            }` : '--:--',
+          status: call.status as 'completed' | 'missed',
+          type: call.transcriptions?.[0]?.content?.substring(0, 20) + '...' || 'Appel'
+        }));
+        setRecentCalls(formattedCalls || []);
+      }
+
+      const appointmentsCount = await getAppointmentsCount();
+      setStats({
+        totalCalls,
+        appointmentsBooked: appointmentsCount,
+        averageCallDuration: `${minutes}m ${seconds}s`,
+        conversionRate: totalCalls > 0 ? `${Math.round((completedCalls.length / totalCalls) * 100)}%` : '0%'
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setStats({
+        totalCalls: 0,
+        appointmentsBooked: 0,
+        averageCallDuration: '0m 0s',
+        conversionRate: '0%',
+      });
+      setRecentCalls([]);
     }
-
-    setStats({
-      totalCalls,
-      appointmentsBooked: await getAppointmentsCount(),
-      averageCallDuration: `${minutes}m ${seconds}s`,
-      conversionRate: totalCalls > 0 ? `${Math.round((completedCalls.length / totalCalls) * 100)}%` : '0%'
-    });
   };
 
   const getAppointmentsCount = async () => {
@@ -157,20 +178,25 @@ export default function DashboardHome() {
   };
 
   const subscribeToUpdates = () => {
-    const subscription = supabase
-      .channel('dashboard')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'calls'
-      }, () => {
-        fetchDashboardData();
-      })
-      .subscribe();
+    try {
+      const subscription = supabase
+        .channel('dashboard')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'calls'
+        }, () => {
+          fetchDashboardData();
+        })
+        .subscribe();
 
-    return () => {
-      subscription.unsubscribe();
-    };
+      return () => {
+        subscription.unsubscribe();
+      };
+    } catch (error) {
+      console.error('Error subscribing to updates:', error);
+      return () => {};
+    }
   };
 
   return (

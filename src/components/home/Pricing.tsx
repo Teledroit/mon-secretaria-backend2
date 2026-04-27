@@ -49,14 +49,14 @@ export default function Pricing() {
   const [selectedEngine, setSelectedEngine] = useState(aiEngines[0]);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   const handleSubscribe = async (productId: string) => {
     try {
       setIsLoading(true);
-      
+
       // If user is not authenticated, redirect to register
-      if (!session) {
+      if (!user) {
         navigate('/register', { 
           state: { 
             returnTo: '/#pricing',
